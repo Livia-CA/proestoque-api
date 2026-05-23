@@ -1,11 +1,22 @@
-import dotenv from 'dotenv';
+import 'dotenv/config';
 
 import app from './app';
-
-dotenv.config();
+import { prisma } from './prisma/client';
 
 const port = Number(process.env.PORT) || 3333;
 
-app.listen(port, () => {
-  console.log(`API ProEstoque rodando na porta ${port}`);
-});
+async function start() {
+  try {
+    await prisma.$connect();
+    console.log('Banco de dados conectado');
+
+    app.listen(port, () => {
+      console.log(`API ProEstoque rodando na porta ${port}`);
+    });
+  } catch (error) {
+    console.error('Erro ao iniciar a API:', error);
+    process.exit(1);
+  }
+}
+
+void start();
