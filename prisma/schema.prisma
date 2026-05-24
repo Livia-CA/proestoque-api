@@ -32,8 +32,22 @@ model Produto {
   atualizadoEm      DateTime   @updatedAt
   categoriaId       String
   categoria         Categoria  @relation(fields: [categoriaId], references: [id])
+  movimentacoes     Movimentacao[]
 
   @@map("produtos")
+}
+
+model Movimentacao {
+  id         String   @id @default(cuid())
+  tipo       String
+  quantidade Int
+  observacao String?
+  criadoEm   DateTime @default(now())
+
+  produtoId  String
+  produto    Produto  @relation(fields: [produtoId], references: [id])
+
+  @@map("movimentacoes")
 }
 
 model Usuario {

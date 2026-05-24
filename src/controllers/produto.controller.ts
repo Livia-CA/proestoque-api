@@ -158,4 +158,66 @@ export class ProdutoController {
       return next(error);
     }
   }
+
+  async registrarMovimentacao(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = String(req.params.id);
+      const { tipo, quantidade, observacao } = req.body;
+
+      if (!tipo || (tipo !== 'entrada' && tipo !== 'saida')) {
+        throw new AppError('Tipo inválido. Use "entrada" ou "saida"', 400);
+      }
+
+      const qty = Number(quantidade);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        throw new AppError('Quantidade deve ser número positivo', 400);
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const produto = await tx.produto.findUnique({ where: { id } });
+        if (!produto) throw new AppError('Produto não encontrado', 404);
+
+        const novoSaldo = tipo === 'entrada' ? produto.quantidade + qty : produto.quantidade - qty;
+        if (novoSaldo < 0) throw new AppError('Saldo insuficiente para essa saída', 409);
+
+        const movimentacao = await tx.movimentacao.create({
+          data: {
+            tipo,
+            quantidade: qty,
+            observacao: observacao ? String(observacao) : null,
+            produtoId: id,
+          },
+        });
+
+        const produtoAtualizado = await tx.produto.update({
+          where: { id },
+          data: { quantidade: novoSaldo, ultimaMovimentacao: new Date() },
+        });
+
+        return { movimentacao, produtoAtualizado };
+      });
+
+      return res.status(201).json(result.movimentacao);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async listarMovimentacoes(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = String(req.params.id);
+
+      const produto = await prisma.produto.findUnique({ where: { id } });
+      if (!produto) throw new AppError('Produto não encontrado', 404);
+
+      const historico = await prisma.movimentacao.findMany({
+        where: { produtoId: id },
+        orderBy: { criadoEm: 'desc' },
+      });
+
+      return res.json(historico);
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
